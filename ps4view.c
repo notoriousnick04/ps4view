@@ -46,7 +46,7 @@ static Uint32 g_toast_ms = 3000;
 static int g_toast_enabled = 1;
 static SDL_Texture *g_toast_tex = NULL;
 static int g_toast_w = 0, g_toast_h = 0;
-static Uint32 g_glossary_timeout_ms = 5000;
+static Uint32 g_glossary_timeout_ms = 0;
 static Uint32 g_glossary_shown_at = 0;
 static int g_cursor_hide = 1;
 static Uint32 g_cursor_hide_ms = 3000;
@@ -539,10 +539,11 @@ static void build_glossary(void) {
     char items[8][128];
     int nlines = 0;
     snprintf(items[nlines++], 128, "Keybinds");
-    snprintf(items[nlines++], 128, "Shift+S  glossary (auto-hides)");
+    snprintf(items[nlines++], 128, "Shift+S  glossary");
     snprintf(items[nlines++], 128, "Shift+D  stats overlay");
     snprintf(items[nlines++], 128, "Shift+V  toggle vsync (%s)", g_vsync ? "on" : "off");
     snprintf(items[nlines++], 128, "Shift+A  toggle audio (%s)", g_audio_on ? "on" : "off");
+    snprintf(items[nlines++], 128, "Shift+R  reset settings");
     snprintf(items[nlines++], 128, "q / Esc  quit");
     snprintf(items[nlines++], 128, "mouse    show cursor");
 
@@ -832,7 +833,7 @@ static void loop(void) {
             SDL_ShowCursor(SDL_DISABLE);
             g_cursor_hidden = 1;
         }
-        if (g_glossary && g_glossary_shown_at && (SDL_GetTicks() - g_glossary_shown_at) > g_glossary_timeout_ms) {
+        if (g_glossary && g_glossary_timeout_ms > 0 && g_glossary_shown_at && (SDL_GetTicks() - g_glossary_shown_at) > g_glossary_timeout_ms) {
             g_glossary = 0;
             if (g_glossary_tex) { SDL_DestroyTexture(g_glossary_tex); g_glossary_tex = NULL; }
     if (g_toast_tex) { SDL_DestroyTexture(g_toast_tex); g_toast_tex = NULL; }
