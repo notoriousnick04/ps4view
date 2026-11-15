@@ -363,26 +363,30 @@ static void handle_events(void) {
                 g_stats_overlay = !g_stats_overlay;
                 if (g_stats_overlay) build_stats();
                 else if (g_stats_tex) { SDL_DestroyTexture(g_stats_tex); g_stats_tex = NULL; }
-                show_toast(g_stats_overlay ? "Stats overlay: on" : "Stats overlay: off");
+                save_config();
+                show_toast(g_stats_overlay ? "Stats overlay: on (saved)" : "Stats overlay: off (saved)");
             }
             else if (e.key.keysym.sym == SDLK_s && (e.key.keysym.mod & KMOD_SHIFT)) {
                 g_glossary = !g_glossary;
                 if (g_glossary) { build_glossary(); g_glossary_shown_at = SDL_GetTicks(); }
                 else { if (g_glossary_tex) { SDL_DestroyTexture(g_glossary_tex); g_glossary_tex = NULL; } g_glossary_shown_at = 0; }
-                show_toast(g_glossary ? "Glossary: on" : "Glossary: off");
+                save_config();
+                show_toast(g_glossary ? "Glossary: on (saved)" : "Glossary: off (saved)");
             }
             else if (e.key.keysym.sym == SDLK_v && (e.key.keysym.mod & KMOD_SHIFT)) {
                 g_vsync = !g_vsync;
                 SDL_RenderSetVSync(g_ren, g_vsync);
                 if (g_stats_overlay) build_stats();
                 if (g_glossary) build_glossary();
-                show_toast(g_vsync ? "Vsync: on" : "Vsync: off");
+                save_config();
+                show_toast(g_vsync ? "Vsync: on (saved)" : "Vsync: off (saved)");
             }
             else if (e.key.keysym.sym == SDLK_a && (e.key.keysym.mod & KMOD_SHIFT)) {
                 audio_toggle();
                 if (g_stats_overlay) build_stats();
                 if (g_glossary) build_glossary();
-                show_toast(g_audio_on ? "Audio: on" : "Audio: off");
+                save_config();
+                show_toast(g_audio_on ? "Audio: on (saved)" : "Audio: off (saved)");
             }
         }
     }
@@ -771,6 +775,8 @@ static void load_config(void) {
         else if (!strcmp(key, "toast")) g_toast_enabled = atoi(val);
         else if (!strcmp(key, "toast_ms")) g_toast_ms = (Uint32)atoi(val);
         else if (!strcmp(key, "glossary_flash")) g_glossary_flash = atoi(val);
+        else if (!strcmp(key, "stats_overlay")) g_stats_overlay = atoi(val);
+        else if (!strcmp(key, "glossary")) g_glossary = atoi(val);
     }
     fclose(f);
 }
@@ -797,6 +803,8 @@ static void save_config(void) {
     fprintf(f, "toast=%d\n", g_toast_enabled);
     fprintf(f, "toast_ms=%u\n", g_toast_ms);
     fprintf(f, "glossary_flash=%d\n", g_glossary_flash);
+    fprintf(f, "stats_overlay=%d\n", g_stats_overlay);
+    fprintf(f, "glossary=%d\n", g_glossary);
     fclose(f);
 }
 
