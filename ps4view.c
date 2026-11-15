@@ -62,6 +62,8 @@ static SDL_AudioDeviceID g_audio_cap = 0;
 static SDL_AudioDeviceID g_audio_play = 0;
 static SDL_AudioStream *g_audio_stream = NULL;
 static int g_audio_on = 0;
+static float g_audio_gain = 4.0f;
+static SDL_AudioSpec g_cap_spec;
 static int g_no_audio = 0;
 static int g_audio_flag = 0;
 static char g_device_path[256] = "";
@@ -609,6 +611,16 @@ static void build_glossary(void) {
 
 static void audio_capture_cb(void *ud, Uint8 *stream, int len) {
     (void)ud;
+    if (g_audio_gain != 1.0f && (g_cap_spec.format == AUDIO_S16SYS || g_cap_spec.format == AUDIO_S16LSB || g_cap_spec.format == AUDIO_S16MSB)) {
+        int n = len / 2;
+        Sint16 *p16 = (Sint16 *)stream;
+        for (int i = 0; i < n; i++) {
+            int v = (int)(p16[i] * g_audio_gain);
+            if (v > 32767) v = 32767;
+            if (v < -32768) v = -32768;
+            p16[i] = (Sint16)v;
+        }
+    }
     if (g_audio_stream) SDL_AudioStreamPut(g_audio_stream, stream, len);
 }
 
@@ -654,6 +666,7 @@ static void audio_init(void) {
         return;
     }
 
+    g_cap_spec = have_cap;
     g_audio_stream = SDL_NewAudioStream(have_cap.format, have_cap.channels, have_cap.freq,
                                        have_play.format, have_play.channels, have_play.freq);
     if (!g_audio_stream) {
@@ -774,6 +787,7 @@ static void load_config(void) {
         else if (!strcmp(key, "device")) snprintf(g_device_path, sizeof(g_device_path), "%s", val);
         else if (!strcmp(key, "vsync")) g_vsync = atoi(val);
         else if (!strcmp(key, "audio")) g_audio_flag = atoi(val);
+        else if (!strcmp(key, "audio_gain")) g_audio_gain = (float)atof(val);
         else if (!strcmp(key, "cursor_hide")) g_cursor_hide = atoi(val);
         else if (!strcmp(key, "cursor_hide_ms")) g_cursor_hide_ms = (Uint32)atoi(val);
         else if (!strcmp(key, "toast")) g_toast_enabled = atoi(val);
@@ -802,6 +816,7 @@ static void save_config(void) {
     fprintf(f, "device=%s\n", g_device_path);
     fprintf(f, "vsync=%d\n", g_vsync);
     fprintf(f, "audio=%d\n", g_audio_on ? 1 : g_audio_flag);
+    fprintf(f, "audio_gain=%.2f\n", g_audio_gain);
     fprintf(f, "cursor_hide=%d\n", g_cursor_hide);
     fprintf(f, "cursor_hide_ms=%u\n", g_cursor_hide_ms);
     fprintf(f, "toast=%d\n", g_toast_enabled);
@@ -819,6 +834,7 @@ static void reset_config(void) {
     g_mjpg = 0;
     g_vsync = 1;
     g_audio_flag = 0;
+    g_audio_gain = 4.0f;
     if (g_audio_cap || g_audio_play) audio_shutdown();
     g_cursor_hide = 1;
     g_cursor_hide_ms = 3000;
@@ -935,6 +951,7 @@ static void usage(const char *p) {
         "  --no-audio              disable audio capture/playback\n"
         "  --no-config             disable loading/saving settings\n"
         "  --audio                 enable audio capture/playback at startup\n"
+        "  --audio-gain FLOAT      software gain for audio (default 4.0)\n"
         "  Shift+V toggles vsync at runtime\n"
         "  --cursor-hide-ms N  hide cursor after N ms idle (default 5000)\n"
         "  --no-cursor-hide    never hide the cursor\n"
@@ -973,11 +990,12 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--no-toast")) { g_toast_enabled = 0; }
         else if (!strcmp(argv[i], "--no-audio")) { g_no_audio = 1; }
         else if (!strcmp(argv[i], "--audio")) { g_audio_flag = 1; }
+        else if (!strcmp(argv[i], "--audio-gain") && i + 1 < argc) { g_audio_gain = (float)atof(argv[++i]); }
         else if (!strcmp(argv[i], "--no-config")) { g_config_enabled = 0; }
         else if (!strcmp(argv[i], "--cursor-hide-ms") && i + 1 < argc) { g_cursor_hide_ms = (Uint32)atoi(argv[++i]); }
         else if (!strcmp(argv[i], "--no-cursor-hide")) { g_cursor_hide = 0; }
         else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) { usage(argv[0]); return 0; }
-        else if (!strcmp(argv[i], "--version")) { printf("ps4view 1.0.0\n"); return 0; }
+        else if (!strcmp(argv[i], "--version")) { printf("ps4view 1.1.0\n"); return 0; }
         else { fprintf(stderr, "unknown arg: %s\n", argv[i]); usage(argv[0]); return 1; }
     }
 
