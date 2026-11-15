@@ -678,6 +678,7 @@ static void audio_init(void) {
 
     SDL_PauseAudioDevice(g_audio_cap, 0);
     SDL_PauseAudioDevice(g_audio_play, 0);
+    g_audio_flag = 1;
     g_audio_on = 1;
     fprintf(stderr, "ps4view: audio enabled (%s)\n", cap_name ? cap_name : "default capture");
 }
@@ -698,6 +699,7 @@ static void audio_toggle(void) {
         }
     } else {
         g_audio_on = !g_audio_on;
+        g_audio_flag = g_audio_on;
         SDL_PauseAudioDevice(g_audio_cap, !g_audio_on);
         SDL_PauseAudioDevice(g_audio_play, !g_audio_on);
     }
@@ -815,7 +817,7 @@ static void save_config(void) {
     fprintf(f, "format=%s\n", g_mjpg ? "mjpg" : "yuyv");
     fprintf(f, "device=%s\n", g_device_path);
     fprintf(f, "vsync=%d\n", g_vsync);
-    fprintf(f, "audio=%d\n", g_audio_on ? 1 : g_audio_flag);
+    fprintf(f, "audio=%d\n", g_audio_flag);
     fprintf(f, "audio_gain=%.2f\n", g_audio_gain);
     fprintf(f, "cursor_hide=%d\n", g_cursor_hide);
     fprintf(f, "cursor_hide_ms=%u\n", g_cursor_hide_ms);
