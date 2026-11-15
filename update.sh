@@ -6,8 +6,15 @@ cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 PREFIX="${PREFIX:-$HOME/.local}"
 
 if [ -d .git ]; then
-    echo "Fetching latest changes..."
-    git pull --ff-only
+    echo "Checking for updates..."
+    before="$(git rev-parse HEAD 2>/dev/null || echo)"
+    git pull --ff-only --quiet
+    after="$(git rev-parse HEAD 2>/dev/null || echo)"
+    if [ -n "$before" ] && [ "$before" = "$after" ]; then
+        echo "Already up to date ($(./ps4view --version 2>/dev/null || echo unknown))."
+        exit 0
+    fi
+    echo "Updated to $(git rev-parse --short HEAD). Rebuilding..."
 fi
 
 make check-deps
