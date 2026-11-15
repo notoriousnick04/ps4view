@@ -34,12 +34,12 @@ static int g_width = DEFAULT_W;
 static int g_height = DEFAULT_H;
 static int g_fps = DEFAULT_FPS;
 static int g_mjpg = 0;
-static int g_vsync = 0;
+static int g_vsync = 1;
 static int g_fullscreen = 1;
 static int g_stats = 0;
 static int g_stats_overlay = 0;
-static int g_glossary = 0;
-static int g_glossary_flash = 1;
+static int g_glossary = 1;
+static int g_glossary_flash = 0;
 static char g_toast[128] = "";
 static Uint32 g_toast_until = 0;
 static Uint32 g_toast_ms = 3000;
@@ -679,11 +679,15 @@ static void audio_shutdown(void) {
 static void audio_toggle(void) {
     if (!g_audio_cap || !g_audio_play) {
         audio_init();
-        return;
+        if (!g_audio_cap || !g_audio_play) {
+            show_toast("Audio: unavailable");
+            return;
+        }
+    } else {
+        g_audio_on = !g_audio_on;
+        SDL_PauseAudioDevice(g_audio_cap, !g_audio_on);
+        SDL_PauseAudioDevice(g_audio_play, !g_audio_on);
     }
-    g_audio_on = !g_audio_on;
-    SDL_PauseAudioDevice(g_audio_cap, !g_audio_on);
-    SDL_PauseAudioDevice(g_audio_play, !g_audio_on);
     fprintf(stderr, "ps4view: audio %s\n", g_audio_on ? "on" : "off");
 }
 
@@ -813,14 +817,16 @@ static void reset_config(void) {
     g_height = DEFAULT_H;
     g_fps = DEFAULT_FPS;
     g_mjpg = 0;
-    g_vsync = 0;
+    g_vsync = 1;
     g_audio_flag = 0;
     if (g_audio_cap || g_audio_play) audio_shutdown();
     g_cursor_hide = 1;
     g_cursor_hide_ms = 3000;
     g_toast_enabled = 1;
     g_toast_ms = 3000;
-    g_glossary_flash = 1;
+    g_glossary_flash = 0;
+    g_glossary = 1;
+    g_stats_overlay = 0;
     g_device_path[0] = '\0';
     save_config();
     show_toast("Settings reset to defaults");
