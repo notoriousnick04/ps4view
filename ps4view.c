@@ -38,7 +38,7 @@ static int g_vsync = 1;
 static int g_fullscreen = 1;
 static int g_stats = 0;
 static int g_stats_overlay = 0;
-static int g_glossary = 1;
+static int g_glossary = 0;
 static int g_glossary_flash = 0;
 static char g_toast[128] = "";
 static Uint32 g_toast_until = 0;
@@ -843,7 +843,7 @@ static void reset_config(void) {
     g_toast_enabled = 1;
     g_toast_ms = 3000;
     g_glossary_flash = 0;
-    g_glossary = 1;
+    g_glossary = 0;
     g_stats_overlay = 0;
     g_device_path[0] = '\0';
     save_config();
