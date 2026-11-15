@@ -14,6 +14,10 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include <sched.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <libgen.h>
 #include <sys/time.h>
 
 #define MAX_DEVICES 64
@@ -60,6 +64,10 @@ static SDL_AudioStream *g_audio_stream = NULL;
 static int g_audio_on = 0;
 static int g_no_audio = 0;
 static int g_audio_flag = 0;
+static char g_device_path[256] = "";
+static int g_config_enabled = 1;
+static int g_reset_pending = 0;
+static Uint32 g_reset_pending_until = 0;
 static void overlay_init(void);
 static void overlay_shutdown(void);
 static void build_stats(void);
@@ -69,6 +77,10 @@ static void build_toast(void);
 static void audio_init(void);
 static void audio_shutdown(void);
 static void audio_toggle(void);
+static void load_config(void);
+static void save_config(void);
+static void reset_config(void);
+static void config_path(char *buf, size_t sz);
 
 static SDL_Window *g_win = NULL;
 static SDL_Renderer *g_ren = NULL;
@@ -336,6 +348,17 @@ static void handle_events(void) {
         }
         else if (e.type == SDL_KEYDOWN) {
             if (e.key.keysym.sym == SDLK_ESCAPE || e.key.keysym.sym == SDLK_q) g_running = 0;
+            else if (e.key.keysym.sym == SDLK_r && (e.key.keysym.mod & KMOD_SHIFT)) {
+                Uint32 now = SDL_GetTicks();
+                if (g_reset_pending && now < g_reset_pending_until) {
+                    g_reset_pending = 0;
+                    reset_config();
+                } else {
+                    g_reset_pending = 1;
+                    g_reset_pending_until = now + 3000;
+                    show_toast("Press Shift+R again to reset settings");
+                }
+            }
             else if (e.key.keysym.sym == SDLK_d && (e.key.keysym.mod & KMOD_SHIFT)) {
                 g_stats_overlay = !g_stats_overlay;
                 if (g_stats_overlay) build_stats();
@@ -712,6 +735,88 @@ static void show_toast(const char *msg) {
     g_toast_until = SDL_GetTicks() + g_toast_ms;
 }
 
+
+/* ---------- config persistence ---------- */
+
+static void config_path(char *buf, size_t sz) {
+    const char *home = getenv("HOME");
+    if (!home) home = ".";
+    snprintf(buf, sz, "%s/.config/ps4view/config", home);
+}
+
+static void load_config(void) {
+    if (!g_config_enabled) return;
+    char path[512];
+    config_path(path, sizeof(path));
+    FILE *f = fopen(path, "r");
+    if (!f) return;
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {
+        char *eq = strchr(line, '=');
+        if (!eq) continue;
+        *eq = '\0';
+        char *key = line;
+        char *val = eq + 1;
+        val[strcspn(val, "\r\n")] = '\0';
+        if (!strcmp(key, "width")) g_width = atoi(val);
+        else if (!strcmp(key, "height")) g_height = atoi(val);
+        else if (!strcmp(key, "fps")) g_fps = atoi(val);
+        else if (!strcmp(key, "format")) g_mjpg = (!strcmp(val, "mjpg") || !strcmp(val, "mjpeg"));
+        else if (!strcmp(key, "device")) snprintf(g_device_path, sizeof(g_device_path), "%s", val);
+        else if (!strcmp(key, "vsync")) g_vsync = atoi(val);
+        else if (!strcmp(key, "audio")) g_audio_flag = atoi(val);
+        else if (!strcmp(key, "cursor_hide")) g_cursor_hide = atoi(val);
+        else if (!strcmp(key, "cursor_hide_ms")) g_cursor_hide_ms = (Uint32)atoi(val);
+        else if (!strcmp(key, "toast")) g_toast_enabled = atoi(val);
+        else if (!strcmp(key, "toast_ms")) g_toast_ms = (Uint32)atoi(val);
+        else if (!strcmp(key, "glossary_flash")) g_glossary_flash = atoi(val);
+    }
+    fclose(f);
+}
+
+static void save_config(void) {
+    if (!g_config_enabled) return;
+    char path[512];
+    config_path(path, sizeof(path));
+    char dir[512];
+    snprintf(dir, sizeof(dir), "%s", path);
+    char *slash = strrchr(dir, '/');
+    if (slash) { *slash = '\0'; mkdir(dir, 0755); }
+    FILE *f = fopen(path, "w");
+    if (!f) return;
+    fprintf(f, "width=%d\n", g_width);
+    fprintf(f, "height=%d\n", g_height);
+    fprintf(f, "fps=%d\n", g_fps);
+    fprintf(f, "format=%s\n", g_mjpg ? "mjpg" : "yuyv");
+    fprintf(f, "device=%s\n", g_device_path);
+    fprintf(f, "vsync=%d\n", g_vsync);
+    fprintf(f, "audio=%d\n", g_audio_on ? 1 : g_audio_flag);
+    fprintf(f, "cursor_hide=%d\n", g_cursor_hide);
+    fprintf(f, "cursor_hide_ms=%u\n", g_cursor_hide_ms);
+    fprintf(f, "toast=%d\n", g_toast_enabled);
+    fprintf(f, "toast_ms=%u\n", g_toast_ms);
+    fprintf(f, "glossary_flash=%d\n", g_glossary_flash);
+    fclose(f);
+}
+
+static void reset_config(void) {
+    g_width = DEFAULT_W;
+    g_height = DEFAULT_H;
+    g_fps = DEFAULT_FPS;
+    g_mjpg = 0;
+    g_vsync = 0;
+    g_audio_flag = 0;
+    if (g_audio_cap || g_audio_play) audio_shutdown();
+    g_cursor_hide = 1;
+    g_cursor_hide_ms = 3000;
+    g_toast_enabled = 1;
+    g_toast_ms = 3000;
+    g_glossary_flash = 1;
+    g_device_path[0] = '\0';
+    save_config();
+    show_toast("Settings reset to defaults");
+}
+
 static void loop(void) {
     struct sched_param sp;
     sp.sched_priority = sched_get_priority_max(SCHED_FIFO);
@@ -722,6 +827,7 @@ static void loop(void) {
 
     while (g_running) {
         handle_events();
+        if (g_reset_pending && SDL_GetTicks() > g_reset_pending_until) { g_reset_pending = 0; }
         if (g_cursor_hide && !g_cursor_hidden && (SDL_GetTicks() - g_last_mouse) > g_cursor_hide_ms) {
             SDL_ShowCursor(SDL_DISABLE);
             g_cursor_hidden = 1;
@@ -812,6 +918,7 @@ static void usage(const char *p) {
         "  --toast-ms N             toast duration ms (default 3000)\n"
         "  --no-toast              disable toast notifications\n"
         "  --no-audio              disable audio capture/playback\n"
+        "  --no-config             disable loading/saving settings\n"
         "  --audio                 enable audio capture/playback at startup\n"
         "  Shift+V toggles vsync at runtime\n"
         "  --cursor-hide-ms N  hide cursor after N ms idle (default 5000)\n"
@@ -820,12 +927,18 @@ static void usage(const char *p) {
         "  --version         print version\n", p);
 }
 
+static void on_signal(int sig) { (void)sig; g_running = 0; }
+
 int main(int argc, char **argv) {
+    int no_config = 0;
+    for (int i = 1; i < argc; i++) if (!strcmp(argv[i], "--no-config")) no_config = 1;
+    if (!no_config) load_config();
+    else g_config_enabled = 0;
     char *device = NULL;
     int do_list = 0;
 
     for (int i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "--device") && i + 1 < argc) { device = argv[++i]; }
+        if (!strcmp(argv[i], "--device") && i + 1 < argc) { device = argv[++i]; snprintf(g_device_path, sizeof(g_device_path), "%s", device); }
         else if (!strcmp(argv[i], "--list")) { do_list = 1; }
         else if (!strcmp(argv[i], "--res") && i + 1 < argc) {
             sscanf(argv[++i], "%dx%d", &g_width, &g_height);
@@ -845,6 +958,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--no-toast")) { g_toast_enabled = 0; }
         else if (!strcmp(argv[i], "--no-audio")) { g_no_audio = 1; }
         else if (!strcmp(argv[i], "--audio")) { g_audio_flag = 1; }
+        else if (!strcmp(argv[i], "--no-config")) { g_config_enabled = 0; }
         else if (!strcmp(argv[i], "--cursor-hide-ms") && i + 1 < argc) { g_cursor_hide_ms = (Uint32)atoi(argv[++i]); }
         else if (!strcmp(argv[i], "--no-cursor-hide")) { g_cursor_hide = 0; }
         else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) { usage(argv[0]); return 0; }
@@ -854,10 +968,12 @@ int main(int argc, char **argv) {
 
     if (do_list) { list_devices(); return 0; }
 
+    if (!device && g_device_path[0]) device = strdup(g_device_path);
     if (!device) {
         device = autoscan_device();
         if (!device) { fprintf(stderr, "ps4view: no capture device found\n"); return 1; }
         fprintf(stderr, "ps4view: autoscan selected %s\n", device);
+        snprintf(g_device_path, sizeof(g_device_path), "%s", device);
     }
 
     if (!g_stats && !g_stats_overlay) fprintf(stderr, "ps4view: press Shift+S for on-screen stats\n");
@@ -868,8 +984,11 @@ int main(int argc, char **argv) {
     if (g_stats_overlay) build_stats();
     if (g_glossary) { build_glossary(); g_glossary_shown_at = SDL_GetTicks(); }
     else if (g_glossary_flash) { g_glossary = 1; build_glossary(); g_glossary_shown_at = SDL_GetTicks(); }
+    signal(SIGINT, on_signal);
+    signal(SIGTERM, on_signal);
     loop();
     sdl_shutdown();
     v4l2_close();
+    save_config();
     return 0;
 }
