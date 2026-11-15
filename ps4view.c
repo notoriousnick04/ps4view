@@ -691,7 +691,7 @@ static void build_toast(void) {
     int adv = (g_face->glyph->advance.x >> 6);
     if (adv < 4) adv = 8;
     int cell_h = 16 + 4;
-    int pad = 8;
+    int pad = 6;
     int tw = (int)strlen(g_toast) * adv + pad * 2;
     int th = cell_h + pad * 2;
     if (tw < 10) tw = 10;
@@ -714,7 +714,7 @@ static void build_toast(void) {
                 int y = gy + row;
                 if (x < 0 || y < 0 || x >= tw || y >= th) continue;
                 Uint32 *px = (Uint32 *)((Uint8 *)surf->pixels + y * surf->pitch + x * 4);
-                *px = SDL_MapRGBA(surf->format, 255, 220, 80, v);
+                *px = SDL_MapRGBA(surf->format, 255, 255, 255, v);
             }
         }
         pen_x += g->advance.x >> 6;

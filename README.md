@@ -5,7 +5,21 @@ YUYV is rendered with zero CPU conversion (SDL YUY2 texture). MJPG is
 decoded with turbojpeg. A 2-buffer queue plus frame-dropping keeps the
 display current.
 
+## Dependencies
+
+- SDL2
+- FreeType2
+- libturbojpeg
+- V4L2 kernel headers (linux-headers / linux-libc-dev)
+
+Check with `make check-deps`. Install:
+
+- Arch: `sudo pacman -S sdl2 freetype2 libjpeg-turbo linux-headers`
+- Debian/Ubuntu: `sudo apt install libsdl2-dev libfreetype-dev libturbojpeg0-dev linux-libc-dev`
+- Fedora: `sudo dnf install SDL2-devel freetype-devel turbojpeg-devel kernel-headers`
+
 ## Build
+
 
     cd ~/ps4view
     make
