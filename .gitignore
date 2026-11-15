@@ -1,0 +1,8 @@
+# Build artifacts
+ps4view
+*.o
+*.d
+
+# Editor / OS
+*~
+.DS_Store
