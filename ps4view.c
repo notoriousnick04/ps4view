@@ -999,6 +999,7 @@ int main(int argc, char **argv) {
     if (g_stats_overlay) build_stats();
     if (g_glossary) { build_glossary(); g_glossary_shown_at = SDL_GetTicks(); }
     else if (g_glossary_flash) { g_glossary = 1; build_glossary(); g_glossary_shown_at = SDL_GetTicks(); }
+    signal(SIGHUP, on_signal);
     signal(SIGINT, on_signal);
     signal(SIGTERM, on_signal);
     loop();
