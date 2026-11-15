@@ -10,6 +10,14 @@ display current.
     cd ~/ps4view
     make
 
+## Install (optional)
+
+    make install PREFIX=$HOME/.local   # no sudo needed
+    # then run from anywhere:
+    ps4view
+
+    make uninstall PREFIX=$HOME/.local
+
 ## Run
 
 Inside your desktop session (Wayland) - compositor adds ~1 frame:
